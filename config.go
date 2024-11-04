@@ -1,11 +1,12 @@
 package main
 
 import (
-	"errors"
+	"crypto/sha256"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 )
 
 type Method string
@@ -17,7 +18,7 @@ const (
 	Patch   Method = "PATCH"
 	Delete  Method = "DELETE"
 	Options Method = "OPTIONS"
-	HEAD    Method = "HEAD"
+	Head    Method = "HEAD"
 )
 
 type Header struct {
@@ -63,47 +64,50 @@ type Configuration struct {
 
 var configuration Configuration
 
-func getWorkspaces() Workspace {
-	if configuration = nil {
-	 // TODO: validar aca
+func generateHash() string {
+	now := time.Now()
+	ts := now.Unix()
+	tsString := strconv.FormatInt(ts, 10)
 
-	}
+	hash := sha256.New()
+
+	hash.Write([]byte(tsString))
+
+	sum := hash.Sum(nil)
+
+	hashString := fmt.Sprintf("%x", sum)
+	return hashString
+
 }
 
-func createConfigFile() Configuration {
-
-}
-
-func readConfigFile() Configuration {
-
-}
-
-func getConfiguration() Configuration {
-	homeDir, err := os.UserHomeDir()
+func getConfigPath() string {
+	homedir, err := os.UserHomeDir()
 
 	if err != nil {
-		log.Fatal(err)
 		panic(err)
 	}
 
-	configPath := filepath.Join(homeDir, ".config", "termrequest")
+	configpath := filepath.Join(homedir, ".config", "termrequest")
 
-	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
-		err := os.MkdirAll(configPath)
+	if _, err := os.Stat(configpath); os.IsNotExist(err) {
+		err := os.MkdirAll(configpath, os.ModePerm)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	configFile := filepath.Join(configPath, "settings.yml")
-
-	if _, err := is, Stat(configFile); os.IsNotExist(err) {
-		newFile, err := os.Create(configFile)
-		if err != nil {
-			panic(err)
-		}
-
-		defer newFIle.close()
-
-	}
+	return configpath
 }
+
+func getInitialConfig(fileconfig string) Configuration {
+	hash := generateHash()
+
+	configuration := Configuration{
+		Hash: hash,
+	}
+
+	return configuration
+
+}
+
+func getConfigFile() {}

@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
 
-func main() {}
+func main() {
+	message := getInitialConfig(".")
+	fmt.Println(message)
+}
