@@ -3,10 +3,13 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Method string
@@ -22,13 +25,15 @@ const (
 )
 
 type Header struct {
-	Key   string `yaml:"key"`
-	Value string `yaml:"value"`
+	Key    string `yaml:"key"`
+	Value  string `yaml:"value"`
+	Enable bool   `default:"true" yaml:"enable"`
 }
 
 type URLSearchParam struct {
-	Key   string `yaml:"key"`
-	Value string `yaml:"value"`
+	Key    string `yaml:"key"`
+	Value  string `yaml:"value"`
+	Enable bool   `default:"true" yaml:"enable"`
 }
 
 type Request struct {
@@ -38,11 +43,13 @@ type Request struct {
 	Path            string           `yaml:"path,omitempty"`
 	URLSearchParams []URLSearchParam `yaml:"urlSearchParams,omitempty"`
 	Body            string           `yaml:"body,omitempty"`
+	Enable          bool             `default:"true" yaml:"enable"`
 }
 
 type EnvironmentVariable struct {
-	Key   string `yaml:"key"`
-	Value string `yaml:"value"`
+	Key    string `yaml:"key"`
+	Value  string `yaml:"value"`
+	Enable bool   `default:"true" yaml:"enable"`
 }
 
 type Folders struct {
@@ -50,16 +57,21 @@ type Folders struct {
 	Description          string                `yaml:"description,omitempty"`
 	Requests             []Request             `yaml:"requests,omitempty"`
 	EnvironmentVariables []EnvironmentVariable `yaml:"env,omitempty"`
+	Enable               bool                  `default:"true" yaml:"enable"`
 }
 
 type Workspace struct {
 	Name                 string                `yaml:"name"`
 	EnvironmentVariables []EnvironmentVariable `yaml:"env"`
+	Enable               bool                  `default:"true" yaml:"enable"`
 }
 
 type Configuration struct {
-	Hash       string      `yaml:"hash"`
-	Workspaces []Workspace `yaml:"workspaces"`
+	Hash                        string                `yaml:"hash"`
+	InitialDate                 time.Time             `yaml:"initialDate"`
+	Version                     string                `yaml:"version"`
+	GlobalEnvironmentsVariables []EnvironmentVariable `yaml:"env,omitempty"`
+	Workspaces                  []Workspace           `yaml:"workspaces"`
 }
 
 var configuration Configuration
@@ -99,15 +111,49 @@ func getConfigPath() string {
 	return configpath
 }
 
-func getInitialConfig(fileconfig string) Configuration {
+func getInitialConfig() Configuration {
 	hash := generateHash()
 
 	configuration := Configuration{
-		Hash: hash,
+		Hash:        hash,
+		InitialDate: time.Now(),
 	}
 
 	return configuration
 
 }
 
-func getConfigFile() {}
+func getConfigFile() Configuration {
+	configFile := filepath.Join(getConfigPath(), "settings.yml")
+	var configuration Configuration
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		f, err := os.Create(configFile)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		configuration = getInitialConfig()
+		yamlFile, err := yaml.Marshal(&configuration)
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = io.WriteString(f, string(yamlFile))
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		yamlFile, err := os.ReadFile(configFile)
+		if err != nil {
+			panic(err)
+		}
+
+		err = yaml.Unmarshal(yamlFile, &configuration)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return configuration
+}
